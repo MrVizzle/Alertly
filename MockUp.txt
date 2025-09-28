@@ -1,0 +1,897 @@
+Alery MOCK-UP   
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  MapPin, Phone, Navigation, Shield, User, Settings, Clock, AlertCircle, 
+  CheckCircle2, X, Heart, Droplet, Brain, Zap, UserX, DollarSign,
+  MessageSquare, Send, Loader2, Star, Award, Sparkles, Waves
+} from 'lucide-react';
+
+// Enhanced mock data
+const MOCK_USER = {
+  uid: 'user123',
+  displayName: 'Sarah Johnson',
+  photoURL: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150&h=150&fit=crop&crop=face',
+  features: 'Red winter coat, brown hair, 5\'6", wearing glasses',
+  emergencyContact: '+1 (555) 123-4567'
+};
+
+const MOCK_ALERTS = [
+  {
+    id: 'alert1',
+    userId: 'user456',
+    displayName: 'Alex Rivera',
+    photoURL: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+    features: 'Navy blue hoodie, glasses, 5\'10", black backpack',
+    lat: 33.4484,
+    lng: -112.0740,
+    timestamp: new Date(Date.now() - 180000), // 3 minutes ago
+    active: true,
+    helpersResponding: ['helper1', 'helper2'],
+    lastLocationUpdate: new Date(Date.now() - 5000)
+  },
+  {
+    id: 'alert2',
+    userId: 'user789',
+    displayName: 'Maria Santos',
+    photoURL: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
+    features: 'White jacket, long dark hair, 5\'4", red scarf',
+    lat: 33.4520,
+    lng: -112.0680,
+    timestamp: new Date(Date.now() - 420000), // 7 minutes ago
+    active: true,
+    helpersResponding: [],
+    lastLocationUpdate: new Date(Date.now() - 8000)
+  }
+];
+
+// AI Response categories with enhanced prompts
+const AI_CATEGORIES = {
+  medical: {
+    title: 'Medical Emergency',
+    icon: Heart,
+    color: 'red',
+    subcategories: [
+      {
+        id: 'heart_attack',
+        name: 'Heart Attack',
+        prompt: 'Person having chest pain/heart attack symptoms',
+        response: "🚨 HEART ATTACK PROTOCOL:\n\n1. Call 911 IMMEDIATELY\n2. Have person sit down, lean against wall\n3. Loosen tight clothing around neck/chest\n4. If conscious, give aspirin if available (ask about allergies first)\n5. Monitor breathing - if stops, begin CPR\n6. Stay calm, reassure: 'Help is coming, you're doing great'\n7. Note time symptoms started for paramedics"
+      },
+      {
+        id: 'stroke',
+        name: 'Stroke',
+        prompt: 'Person showing stroke symptoms (F.A.S.T. signs)',
+        response: "🧠 STROKE PROTOCOL:\n\n1. Call 911 IMMEDIATELY - time is critical\n2. Note exact time symptoms started\n3. FAST check: Face drooping? Arm weakness? Speech difficulty? Time to call 911\n4. Keep person lying down, head slightly elevated\n5. Do NOT give food, water, or medication\n6. Monitor breathing and pulse\n7. Reassure: 'Stay with me, help is almost here'"
+      },
+      {
+        id: 'seizure',
+        name: 'Seizure',
+        prompt: 'Person having a seizure',
+        response: "⚡ SEIZURE PROTOCOL:\n\n1. Call 911 if seizure lasts >5 min or person is injured\n2. Clear area of hard/sharp objects\n3. Place something soft under their head\n4. Turn person on their side (recovery position)\n5. Do NOT restrain or put anything in mouth\n6. Time the seizure duration\n7. Stay with them until fully conscious\n8. Speak calmly: 'You're safe, I'm here to help'"
+      },
+      {
+        id: 'bleeding',
+        name: 'Severe Bleeding',
+        prompt: 'Person with severe bleeding/trauma',
+        response: "🩸 BLEEDING CONTROL:\n\n1. Call 911 immediately\n2. Apply direct pressure with clean cloth/gauze\n3. If blood soaks through, add more layers (don't remove)\n4. Elevate wounded area above heart if possible\n5. Apply pressure to pressure points if needed\n6. Watch for shock symptoms (pale, cold, weak pulse)\n7. Keep person calm and lying down\n8. Say: 'You're going to be okay, help is coming'"
+      }
+    ]
+  },
+  safety: {
+    title: 'Safety & Crime',
+    icon: Shield,
+    color: 'orange',
+    subcategories: [
+      {
+        id: 'assault',
+        name: 'Assault in Progress',
+        prompt: 'Witnessing or involved in physical assault',
+        response: "⚠️ ASSAULT RESPONSE:\n\n1. Call 911 IMMEDIATELY\n2. Do NOT intervene physically unless trained\n3. Be a good witness - note descriptions, license plates\n4. If safe, loudly shout 'Someone call 911!'\n5. Provide first aid to victim if attacker leaves\n6. Stay with victim until help arrives\n7. Document everything you witnessed\n8. Tell victim: 'You're safe now, help is here'"
+      },
+      {
+        id: 'robbery',
+        name: 'Robbery/Theft',
+        prompt: 'Witnessing robbery or theft in progress',
+        response: "💰 ROBBERY RESPONSE:\n\n1. Call 911 immediately\n2. Do NOT chase or confront suspects\n3. Note suspect descriptions, vehicle details, direction of travel\n4. Check if anyone is injured\n5. Preserve the crime scene\n6. Be available to give statement to police\n7. Support any victims emotionally\n8. Remember: Property can be replaced, lives cannot"
+      }
+    ]
+  },
+  environmental: {
+    title: 'Environmental',
+    icon: Waves,
+    color: 'blue',
+    subcategories: [
+      {
+        id: 'fire',
+        name: 'Fire Emergency',
+        prompt: 'Fire emergency or burn injuries',
+        response: "🔥 FIRE EMERGENCY:\n\n1. Call 911 immediately\n2. Get everyone out and stay out\n3. For burns: Cool with running water for 10-20 minutes\n4. Remove from heat source, not clothing stuck to skin\n5. Cover burns loosely with sterile gauze\n6. Do NOT use ice, butter, or ointments\n7. Treat for shock if severe burns\n8. Reassure: 'Help is coming, you did the right thing'"
+      }
+    ]
+  }
+};
+
+// Enhanced animations and styles
+const customStyles = `
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(0.33);
+      opacity: 1;
+    }
+    80%, 100% {
+      transform: scale(2.4);
+      opacity: 0;
+    }
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  .pulse-ring {
+    animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+  }
+  
+  .float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  .glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+`;
+
+function Alertly() {
+  const [currentView, setCurrentView] = useState('home');
+  const [user, setUser] = useState(MOCK_USER);
+  const [activeAlert, setActiveAlert] = useState(null);
+  const [alerts, setAlerts] = useState(MOCK_ALERTS);
+  const [showPINModal, setShowPINModal] = useState(false);
+  const [pin, setPIN] = useState('');
+  const [alertDuration, setAlertDuration] = useState(0);
+  const [toast, setToast] = useState(null);
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [aiCategory, setAiCategory] = useState(null);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [aiResponse, setAiResponse] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [showCustomAi, setShowCustomAi] = useState(false);
+
+  // Enhanced timer with location updates
+  useEffect(() => {
+    let interval;
+    if (activeAlert) {
+      interval = setInterval(() => {
+        setAlertDuration(prev => prev + 1);
+        // Simulate location updates
+        if (Math.random() > 0.7) {
+          setAlerts(prevAlerts => 
+            prevAlerts.map(alert => 
+              alert.userId === user.uid 
+                ? { ...alert, lastLocationUpdate: new Date() }
+                : alert
+            )
+          );
+        }
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [activeAlert, user.uid]);
+
+  // Auto-select first alert when switching to helper view
+  useEffect(() => {
+    if (currentView === 'helper' && alerts.length > 0 && !selectedAlert) {
+      setSelectedAlert(alerts[0]);
+    }
+  }, [currentView, alerts, selectedAlert]);
+
+  const formatDuration = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const showToast = useCallback((message, type = 'info') => {
+    setToast({ message, type, id: Date.now() });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  const handleSendAlert = () => {
+    const newAlert = {
+      id: `alert_${Date.now()}`,
+      userId: user.uid,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      features: user.features,
+      lat: 33.4484 + (Math.random() - 0.5) * 0.01,
+      lng: -112.0740 + (Math.random() - 0.5) * 0.01,
+      timestamp: new Date(),
+      active: true,
+      helpersResponding: [],
+      lastLocationUpdate: new Date()
+    };
+    
+    setActiveAlert(newAlert);
+    setAlerts(prev => [...prev, newAlert]);
+    setAlertDuration(0);
+    showToast('🚨 Emergency alert broadcasted! Location sharing active.', 'success');
+  };
+
+  const handleCancelAlert = () => {
+    if (pin === '1234') {
+      setActiveAlert(null);
+      setAlerts(prev => prev.map(alert => 
+        alert.userId === user.uid ? { ...alert, active: false } : alert
+      ));
+      setShowPINModal(false);
+      setPIN('');
+      setAlertDuration(0);
+      showToast('✅ Alert cancelled successfully. Location sharing stopped.', 'success');
+    } else {
+      showToast('❌ Incorrect PIN. Try again.', 'error');
+      setPIN('');
+    }
+  };
+
+  const handleMarkResponding = (alertId) => {
+    setAlerts(prev => prev.map(alert => 
+      alert.id === alertId 
+        ? { ...alert, helpersResponding: [...alert.helpersResponding, `helper_${Date.now()}`] }
+        : alert
+    ));
+    showToast('🏃‍♂️ Marked as responding! Navigate safely to location.', 'success');
+  };
+
+  const handleAiCategorySelect = (category, subcategory) => {
+    setIsAiLoading(true);
+    setAiCategory(subcategory);
+    
+    setTimeout(() => {
+      setAiResponse(subcategory.response);
+      setIsAiLoading(false);
+      showToast('🤖 AI guidance ready!', 'success');
+    }, 1500);
+  };
+
+  const handleCustomAiQuery = () => {
+    if (!customPrompt.trim()) return;
+    
+    setIsAiLoading(true);
+    setShowCustomAi(true);
+    
+    setTimeout(() => {
+      setAiResponse(`🤖 AI CUSTOM RESPONSE:\n\nBased on your query: "${customPrompt}"\n\n1. Assess the situation safely\n2. Call 911 if immediate danger\n3. Provide first aid if trained\n4. Stay with the person\n5. Document important details\n6. Follow up with authorities\n\nRemember: Your safety comes first. Only help within your capabilities.`);
+      setIsAiLoading(false);
+      setCustomPrompt('');
+      showToast('🤖 Custom AI response generated!', 'success');
+    }, 2000);
+  };
+
+  // Enhanced Toast component
+  const Toast = () => {
+    if (!toast) return null;
+    
+    return (
+      <div className={`fixed top-6 left-4 right-4 z-50 p-4 rounded-2xl shadow-2xl transform transition-all duration-500 ${
+        toast.type === 'error' 
+          ? 'bg-gradient-to-r from-red-500 to-red-600' 
+          : toast.type === 'success' 
+          ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+          : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+      } text-white glass`}>
+        <div className="flex items-center">
+          {toast.type === 'success' && <CheckCircle2 size={24} className="mr-3 flex-shrink-0" />}
+          {toast.type === 'error' && <AlertCircle size={24} className="mr-3 flex-shrink-0" />}
+          {toast.type === 'info' && <Sparkles size={24} className="mr-3 flex-shrink-0" />}
+          <span className="font-medium">{toast.message}</span>
+        </div>
+      </div>
+    );
+  };
+
+  // Enhanced PIN Modal
+  const PINModal = () => {
+    if (!showPINModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl transform transition-all duration-300 scale-100">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Shield size={32} className="text-red-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Security Verification</h3>
+            <p className="text-gray-600">Enter your 4-digit PIN to cancel the alert</p>
+          </div>
+          
+          <input
+            type="password"
+            value={pin}
+            onChange={(e) => setPIN(e.target.value)}
+            placeholder="• • • •"
+            className="w-full p-4 border-2 border-gray-200 rounded-2xl text-center text-3xl tracking-[0.5em] mb-6 focus:border-red-500 focus:outline-none transition-colors"
+            maxLength={4}
+            autoFocus
+          />
+          
+          <div className="flex space-x-3">
+            <button
+              onClick={() => {setShowPINModal(false); setPIN('');}}
+              className="flex-1 py-4 px-6 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-2xl font-semibold transition-all duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCancelAlert}
+              className="flex-1 py-4 px-6 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-2xl font-semibold transition-all duration-200 disabled:opacity-50"
+              disabled={pin.length !== 4}
+            >
+              Confirm
+            </button>
+          </div>
+          
+          <div className="mt-4 p-3 bg-blue-50 rounded-xl">
+            <p className="text-sm text-blue-700 text-center">
+              <strong>Demo PIN:</strong> <code className="font-mono bg-white px-2 py-1 rounded">1234</code>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Home View
+  const HomeView = () => (
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 relative overflow-hidden pb-24">
+      <style>{customStyles}</style>
+      
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-red-200 to-orange-200 rounded-full opacity-20 float"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-orange-200 to-yellow-200 rounded-full opacity-20 float" style={{animationDelay: '1s'}}></div>
+      </div>
+      
+      {!activeAlert ? (
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-6">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center mr-3">
+                <Shield size={24} className="text-white" />
+              </div>
+              <h1 className="text-4xl font-black bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+                Alertly
+              </h1>
+            </div>
+            <p className="text-lg text-gray-600 font-medium">Emergency response in seconds</p>
+            <div className="flex items-center justify-center mt-2 text-sm text-gray-500">
+              <Star size={16} className="text-yellow-400 mr-1" />
+              <span>Award-winning safety platform</span>
+            </div>
+          </div>
+          
+          {/* Simple Alert Button */}
+          <div className="relative mb-12">
+            <button
+              onClick={handleSendAlert}
+              className="w-64 h-64 bg-red-600 hover:bg-red-700 text-white rounded-full flex flex-col items-center justify-center shadow-2xl transform hover:scale-105 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-red-300"
+              aria-label="Send emergency alert"
+            >
+              <AlertCircle size={48} className="mb-2" />
+              <span className="text-xl font-bold">SEND ALERT</span>
+              <span className="text-sm opacity-90 mt-1">Tap for emergency</span>
+            </button>
+          </div>
+          
+          {/* Privacy notice */}
+          <div className="glass rounded-2xl p-6 max-w-sm text-center">
+            <div className="flex items-center justify-center mb-3">
+              <Shield size={20} className="text-green-600 mr-2" />
+              <span className="font-semibold text-gray-800">Privacy Protected</span>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Your location is shared only during active alerts. Auto-stops after 30 minutes.
+            </p>
+          </div>
+          
+          {/* Quick stats */}
+          <div className="grid grid-cols-3 gap-4 mt-8 w-full max-w-sm">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-600">2.3s</div>
+              <div className="text-xs text-gray-500">Avg Response</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">99.9%</div>
+              <div className="text-xs text-gray-500">Uptime</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">24/7</div>
+              <div className="text-xs text-gray-500">Available</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        // Simple Alert Active State 
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-6 text-center">
+          <div className="relative mb-8">
+            <div className="w-32 h-32 bg-red-600 rounded-full flex items-center justify-center relative">
+              <div className="absolute inset-0 bg-red-600 rounded-full pulse-ring"></div>
+              <div className="absolute inset-2 bg-red-600 rounded-full pulse-ring" style={{animationDelay: '0.5s'}}></div>
+              <CheckCircle2 size={48} className="text-white relative z-10" />
+            </div>
+          </div>
+          
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Alert Sent</h2>
+          <p className="text-gray-600 mb-1">Help is on the way</p>
+          
+          <div className="flex items-center text-lg font-mono text-red-600 mb-8">
+            <Clock size={20} className="mr-2" />
+            {formatDuration(alertDuration)}
+          </div>
+          
+          <button
+            onClick={() => setShowPINModal(true)}
+            className="px-8 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium mb-4 focus:outline-none focus:ring-4 focus:ring-gray-300"
+          >
+            CANCEL ALERT
+          </button>
+          
+          <p className="text-sm text-gray-500">
+            Stop sharing in 30 min automatically
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  // Helper Dashboard View
+  const HelperDashboardView = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <style>{customStyles}</style>
+      
+      <div className="flex h-screen">
+        {/* Enhanced Map Area */}
+        <div className="flex-1 relative bg-gradient-to-br from-blue-100 to-indigo-200 overflow-hidden">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center glass rounded-3xl p-8">
+              <MapPin size={64} className="text-blue-600 mx-auto mb-4 float" />
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">Live Emergency Map</h3>
+              <p className="text-gray-600 mb-1">Mapbox Integration Active</p>
+              <p className="text-sm text-gray-500">Phoenix Metropolitan Area</p>
+              <div className="mt-4 px-4 py-2 bg-green-100 text-green-800 rounded-xl text-sm font-medium">
+                🟢 Real-time tracking enabled
+              </div>
+            </div>
+          </div>
+          
+          {/* Enhanced Alert Pins */}
+          {alerts.filter(alert => alert.active).map((alert, index) => (
+            <div
+              key={alert.id}
+              className="absolute cursor-pointer transform hover:scale-110 transition-transform"
+              style={{
+                top: `${25 + index * 20}%`,
+                left: `${30 + index * 25}%`,
+              }}
+              onClick={() => setSelectedAlert(alert)}
+              title={`Emergency: ${alert.displayName}`}
+            >
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center shadow-2xl pulse-ring">
+                  <AlertCircle size={20} className="text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-ping"></div>
+                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  {alert.displayName}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Enhanced Details Panel */}
+        <div className="w-96 bg-white shadow-2xl flex flex-col">
+          {/* Header */}
+          <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+            <h2 className="text-2xl font-bold flex items-center">
+              <Award size={24} className="mr-2" />
+              Emergency Hub
+            </h2>
+            <p className="text-blue-100 mt-1">{alerts.filter(a => a.active).length} active alerts</p>
+          </div>
+          
+          {/* Alerts List - Always Visible */}
+          <div className="flex-1 overflow-y-auto">
+            {alerts.filter(alert => alert.active).map(alert => (
+              <div 
+                key={alert.id}
+                className={`p-4 border-b border-gray-100 cursor-pointer transition-all duration-200 hover:bg-blue-50 ${
+                  selectedAlert?.id === alert.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                }`}
+                onClick={() => setSelectedAlert(alert)}
+              >
+                <div className="flex items-start space-x-3">
+                  <div className="relative">
+                    <img
+                      src={alert.photoURL}
+                      alt={alert.displayName}
+                      className="w-14 h-14 rounded-2xl object-cover shadow-md"
+                    />
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white pulse-ring"></div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-gray-900 text-lg">{alert.displayName}</h3>
+                    <p className="text-sm text-gray-600 mb-1">{alert.features}</p>
+                    <div className="flex items-center text-xs text-gray-500 mb-2">
+                      <Clock size={12} className="mr-1" />
+                      {Math.floor((Date.now() - alert.timestamp) / 60000)}m ago
+                      <span className="mx-2">•</span>
+                      <MapPin size={12} className="mr-1 text-green-600" />
+                      Updated {Math.floor((Date.now() - alert.lastLocationUpdate) / 1000)}s ago
+                    </div>
+                    {alert.helpersResponding.length > 0 && (
+                      <div className="flex items-center">
+                        <User size={12} className="text-blue-600 mr-1" />
+                        <span className="text-xs text-blue-600 font-medium">
+                          {alert.helpersResponding.length} helpers responding
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Quick Action Buttons - Always Visible */}
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open('tel:911', '_blank');
+                    }}
+                    className="py-2 px-3 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium flex items-center justify-center transition-colors"
+                  >
+                    <Phone size={12} className="mr-1" />
+                    911
+                  </button>
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkResponding(alert.id);
+                    }}
+                    className="py-2 px-3 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium flex items-center justify-center transition-colors"
+                  >
+                    <CheckCircle2 size={12} className="mr-1" />
+                    Respond
+                  </button>
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(`https://www.google.com/maps/dir/?api=1&destination=${alert.lat},${alert.lng}`, '_blank');
+                    }}
+                    className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium flex items-center justify-center transition-colors"
+                  >
+                    <Navigation size={12} className="mr-1" />
+                    Go
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* AI Assistance Panel - Only when selected alert needs AI help */}
+          {selectedAlert && (
+            <div className="border-t border-gray-200 bg-gradient-to-b from-gray-50 to-white">
+              <div className="p-4">
+                <button
+                  onClick={() => setShowCustomAi(!showCustomAi)}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 flex items-center justify-center"
+                >
+                  <Brain size={16} className="mr-2" />
+                  AI Emergency Assistant
+                </button>
+              </div>
+              
+              {showCustomAi && (
+                <div className="px-4 pb-4">
+                  {/* AI Categories */}
+                  {!aiCategory && (
+                    <div className="space-y-3 mb-4">
+                      {Object.entries(AI_CATEGORIES).map(([key, category]) => (
+                        <div key={key} className="border border-gray-200 rounded-xl overflow-hidden">
+                          <div className={`p-3 bg-gradient-to-r ${
+                            category.color === 'red' ? 'from-red-500 to-red-600' :
+                            category.color === 'orange' ? 'from-orange-500 to-orange-600' :
+                            'from-blue-500 to-blue-600'
+                          } text-white`}>
+                            <h4 className="font-semibold flex items-center text-sm">
+                              <category.icon size={14} className="mr-2" />
+                              {category.title}
+                            </h4>
+                          </div>
+                          <div className="p-2 space-y-1">
+                            {category.subcategories.map(sub => (
+                              <button
+                                key={sub.id}
+                                onClick={() => handleAiCategorySelect(category, sub)}
+                                className="w-full text-left p-2 rounded-lg hover:bg-gray-100 transition-colors text-xs font-medium text-gray-700"
+                              >
+                                {sub.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Custom AI Query */}
+                      <div className="border-2 border-dashed border-purple-300 rounded-xl p-3 bg-purple-50">
+                        <h4 className="font-semibold text-purple-900 mb-2 flex items-center text-sm">
+                          <MessageSquare size={14} className="mr-2" />
+                          Custom Query
+                        </h4>
+                        <div className="space-y-2">
+                          <textarea
+                            value={customPrompt}
+                            onChange={(e) => setCustomPrompt(e.target.value)}
+                            placeholder="Describe the emergency..."
+                            className="w-full p-2 border border-purple-200 rounded-lg text-xs resize-none h-16 focus:border-purple-400 focus:outline-none"
+                          />
+                          <button
+                            onClick={handleCustomAiQuery}
+                            disabled={!customPrompt.trim() || isAiLoading}
+                            className="w-full py-2 px-3 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-xs"
+                          >
+                            {isAiLoading ? (
+                              <Loader2 size={14} className="animate-spin mr-1" />
+                            ) : (
+                              <Send size={14} className="mr-1" />
+                            )}
+                            Get AI Guidance
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* AI Response Display */}
+                  {(aiCategory || (showCustomAi && aiResponse)) && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold text-gray-900 flex items-center text-sm">
+                          <Brain size={16} className="mr-2 text-purple-600" />
+                          {aiCategory ? aiCategory.name : 'Custom Response'}
+                        </h3>
+                        <button
+                          onClick={() => {
+                            setAiCategory(null);
+                            setAiResponse('');
+                          }}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      
+                      {isAiLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-center">
+                            <Loader2 size={24} className="animate-spin text-purple-600 mx-auto mb-2" />
+                            <p className="text-xs text-gray-600">AI analyzing...</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4">
+                          <pre className="whitespace-pre-wrap text-xs text-gray-800 font-medium leading-relaxed">
+                            {aiResponse}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Settings View
+  const SettingsView = () => (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 p-4 pb-24">
+      <style>{customStyles}</style>
+      
+      <div className="max-w-md mx-auto">
+        {/* Header */}
+        <div className="glass rounded-3xl p-6 mb-6">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-3xl flex items-center justify-center mx-auto mb-4 float">
+              <User size={32} className="text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile & Settings</h2>
+            <p className="text-gray-600">Manage your emergency profile</p>
+          </div>
+        </div>
+        
+        {/* Profile Card */}
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden mb-6">
+          <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-6 text-white">
+            <div className="flex items-center space-x-4">
+              <img
+                src={user.photoURL}
+                alt={user.displayName}
+                className="w-16 h-16 rounded-2xl object-cover border-3 border-white shadow-lg"
+              />
+              <div>
+                <h3 className="text-xl font-bold">{user.displayName}</h3>
+                <p className="text-purple-100 text-sm">Emergency Contact Ready</p>
+                <div className="flex items-center mt-1">
+                  <CheckCircle2 size={14} className="mr-1" />
+                  <span className="text-xs">Profile Verified</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6 space-y-6">
+            {/* Display Name */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Display Name
+              </label>
+              <input
+                type="text"
+                value={user.displayName}
+                onChange={(e) => setUser({...user, displayName: e.target.value})}
+                className="w-full p-4 border-2 border-gray-200 rounded-2xl focus:border-purple-500 focus:outline-none transition-colors font-medium"
+              />
+            </div>
+            
+            {/* Identifying Features */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Identifying Features
+              </label>
+              <textarea
+                value={user.features}
+                onChange={(e) => setUser({...user, features: e.target.value})}
+                placeholder="Clothing, physical description, accessories..."
+                className="w-full p-4 border-2 border-gray-200 rounded-2xl focus:border-purple-500 focus:outline-none transition-colors font-medium resize-none h-24"
+              />
+              <p className="text-xs text-gray-500 mt-1">Help responders identify you quickly</p>
+            </div>
+            
+            {/* Emergency Contact */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Emergency Contact
+              </label>
+              <input
+                type="tel"
+                value={user.emergencyContact}
+                onChange={(e) => setUser({...user, emergencyContact: e.target.value})}
+                className="w-full p-4 border-2 border-gray-200 rounded-2xl focus:border-purple-500 focus:outline-none transition-colors font-medium"
+              />
+            </div>
+            
+            {/* Update Button */}
+            <button className="w-full py-4 px-6 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-2xl font-bold text-lg transition-all duration-200 shadow-lg">
+              Update Profile
+            </button>
+          </div>
+        </div>
+        
+        {/* Demo Information */}
+        <div className="glass rounded-3xl p-6 mb-6">
+          <h4 className="font-bold text-gray-900 mb-4 flex items-center">
+            <Sparkles size={20} className="mr-2 text-yellow-500" />
+            Demo Information
+          </h4>
+          <div className="space-y-3 text-sm">
+            <div className="bg-white rounded-xl p-3">
+              <div className="font-medium text-gray-800">Emergency PIN</div>
+              <div className="text-gray-600">Use <code className="font-mono bg-gray-100 px-2 py-1 rounded">1234</code> to cancel alerts</div>
+            </div>
+            <div className="bg-white rounded-xl p-3">
+              <div className="font-medium text-gray-800">Helper Dashboard</div>
+              <div className="text-gray-600">Switch to "Response" tab to see responder view</div>
+            </div>
+            <div className="bg-white rounded-xl p-3">
+              <div className="font-medium text-gray-800">AI Assistant</div>
+              <div className="text-gray-600">Try different emergency scenarios for AI guidance</div>
+            </div>
+          </div>
+        </div>
+        
+        {/* App Info */}
+        <div className="text-center text-xs text-gray-500">
+          <p>Alertly v2.0 • Built for safety • FAANG-level quality</p>
+          <div className="flex items-center justify-center mt-2">
+            <Award size={12} className="mr-1 text-yellow-500" />
+            <span>Award-winning emergency platform</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Solid Navigation Bar
+  const Navigation = () => (
+    <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-2 shadow-lg">
+      <div className="flex justify-around items-center max-w-md mx-auto">
+        <button
+          onClick={() => setCurrentView('home')}
+          className={`flex flex-col items-center p-3 rounded-xl transition-all duration-200 ${
+            currentView === 'home' 
+              ? 'bg-red-500 text-white shadow-md' 
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+          }`}
+          aria-label="Emergency Home"
+        >
+          <Shield size={24} />
+          <span className="text-xs font-medium mt-1">Emergency</span>
+        </button>
+        
+        <button
+          onClick={() => setCurrentView('helper')}
+          className={`flex flex-col items-center p-3 rounded-xl transition-all duration-200 relative ${
+            currentView === 'helper' 
+              ? 'bg-blue-500 text-white shadow-md' 
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+          }`}
+          aria-label="Helper Dashboard"
+        >
+          <MapPin size={24} />
+          <span className="text-xs font-medium mt-1">Response</span>
+          {alerts.filter(a => a.active).length > 0 && (
+            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center font-bold">
+              {alerts.filter(a => a.active).length}
+            </div>
+          )}
+        </button>
+        
+        <button
+          onClick={() => setCurrentView('settings')}
+          className={`flex flex-col items-center p-3 rounded-xl transition-all duration-200 ${
+            currentView === 'settings' 
+              ? 'bg-purple-500 text-white shadow-md' 
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+          }`}
+          aria-label="Profile Settings"
+        >
+          <Settings size={24} />
+          <span className="text-xs font-medium mt-1">Profile</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="font-sans min-h-screen">
+      <style>{customStyles}</style>
+      
+      {/* Main Content with bottom padding for navbar */}
+      <div className="pb-20">
+        {currentView === 'home' && <HomeView />}
+        {currentView === 'helper' && <HelperDashboardView />}
+        {currentView === 'settings' && <SettingsView />}
+      </div>
+      
+      {/* Modals */}
+      <PINModal />
+      
+      {/* Toast Notifications */}
+      <Toast />
+      
+      {/* Solid Navigation */}
+      <Navigation />
+    </div>
+  );
+}
+
+export default Alertly;
