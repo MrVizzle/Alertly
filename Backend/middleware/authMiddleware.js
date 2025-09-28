@@ -27,9 +27,12 @@ const requireAuth = (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         // Attach user info to request in a consistent shape
+        // Provide both `id` and `_id` for compatibility with different controller expectations
+        const resolvedId = decoded.userId || decoded.id || decoded._id || null;
         req.user = {
-            id: decoded.userId || decoded.id,
-            userName: decoded.userName || decoded.userName || null
+            id: resolvedId,
+            _id: resolvedId,
+            userName: decoded.userName || null
         };
         return next(); // Proceed to the next middleware or route handler
     } catch (error) {
